@@ -50,7 +50,7 @@ public class GameManager : MonoBehaviour
                 SetState(GameState.MenuPrincipal);
                 break;
 
-            case "SampleScene":
+            case "GetStarted_Scene":
                 SetState(GameState.Gameplay);
                 break;
         }
