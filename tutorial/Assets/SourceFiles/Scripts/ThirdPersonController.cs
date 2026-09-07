@@ -1,4 +1,4 @@
-﻿ using UnityEngine;
+﻿using UnityEngine;
 #if ENABLE_INPUT_SYSTEM 
 using UnityEngine.InputSystem;
 #endif
@@ -14,6 +14,14 @@ namespace StarterAssets
 #endif
     public class ThirdPersonController : MonoBehaviour
     {
+        [Header("Player Identity")]
+        [Tooltip("ID do jogador para contagem de pontos e esquema de controles (1 = WASD/Espaço, 2 = Setas/Numpad0)")]
+        public int PlayerID = 1;
+
+        [Header("Camera Reference")]
+        [Tooltip("Câmera do jogador (Arraste a câmera específica deste Player para o Split-Screen funcionar corretamente)")]
+        public GameObject PlayerCamera;
+
         [Header("Player")]
         [Tooltip("Move speed of the character in m/s")]
         public float MoveSpeed = 2.0f;
@@ -75,19 +83,18 @@ namespace StarterAssets
         [Tooltip("For locking the camera position on all axis")]
         public bool LockCameraPosition = false;
 
-        public Vector2  LookSensitivity = new Vector2(7.5f, 5.0f);
+        public Vector2 LookSensitivity = new Vector2(7.5f, 5.0f);
 
         // cinemachine
         private float _cinemachineTargetYaw;
         private float _cinemachineTargetPitch;
 
         // Camera starting position and rotation
-private Vector3 _cameraStartingPosition;
-private Quaternion _cameraStartingRotation;
+        private Vector3 _cameraStartingPosition;
+        private Quaternion _cameraStartingRotation;
 
-// Variable to indicate if we are resetting the camera 
-public bool IsRespawning { get; set; } = false;
-
+        // Variable to indicate if we are resetting the camera 
+        public bool IsRespawning { get; set; } = false;
 
         // player
         private float _speed;
@@ -125,50 +132,54 @@ public bool IsRespawning { get; set; } = false;
             get
             {
 #if ENABLE_INPUT_SYSTEM
-                return _playerInput.currentControlScheme == "KeyboardMouse";
+                return _playerInput != null && _playerInput.currentControlScheme == "KeyboardMouse";
 #else
-				return false;
+                return false;
 #endif
             }
         }
 
-
         private void Awake()
         {
-            // get a reference to our main camera
-            if (_mainCamera == null)
+            if (PlayerCamera != null)
+            {
+                _mainCamera = PlayerCamera;
+            }
+            else if (_mainCamera == null)
             {
                 _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             }
         }
 
         private void Start()
-{
-    _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+    Cursor.visible = false;
+            if (CinemachineCameraTarget != null)
+            {
+                _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
+                _cameraStartingPosition = CinemachineCameraTarget.transform.position;
+                _cameraStartingRotation = CinemachineCameraTarget.transform.rotation;
+            }
 
-    _hasAnimator = TryGetComponent(out _animator);
-    _controller = GetComponent<CharacterController>();
-    _input = GetComponent<StarterAssetsInputs>();
+            _hasAnimator = TryGetComponent(out _animator);
+            _controller = GetComponent<CharacterController>();
+            _input = GetComponent<StarterAssetsInputs>();
 #if ENABLE_INPUT_SYSTEM 
-    _playerInput = GetComponent<PlayerInput>();
-#else
-	Debug.LogError("Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
+            _playerInput = GetComponent<PlayerInput>();
 #endif
-    
-    AssignAnimationIDs();
+            
+            AssignAnimationIDs();
 
-    // Save the starting camera position and rotation
-    _cameraStartingPosition = CinemachineCameraTarget.transform.position;
-    _cameraStartingRotation = CinemachineCameraTarget.transform.rotation;
-
-    // reset our timeouts on start
-    _jumpTimeoutDelta = JumpTimeout;
-    _fallTimeoutDelta = FallTimeout;
-}
+            _jumpTimeoutDelta = JumpTimeout;
+            _fallTimeoutDelta = FallTimeout;
+        }
 
         private void Update()
         {
             _hasAnimator = TryGetComponent(out _animator);
+
+            HandleLocalMultiplayerInputs();
 
             JumpAndGravity();
             GroundedCheck();
@@ -178,6 +189,62 @@ public bool IsRespawning { get; set; } = false;
         private void LateUpdate()
         {
             CameraRotation();
+        }
+
+        /// <summary>
+        /// Mapeia o teclado dividido para P1 e P2 no mesmo teclado.
+        /// </summary>
+        private void HandleLocalMultiplayerInputs()
+        {
+            if (_input == null) return;
+
+#if ENABLE_INPUT_SYSTEM
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
+
+            if (PlayerID == 1)
+            {
+                // P1: Movimento WASD
+                float x = 0f;
+                float y = 0f;
+                if (keyboard.aKey.isPressed) x -= 1f;
+                if (keyboard.dKey.isPressed) x += 1f;
+                if (keyboard.sKey.isPressed) y -= 1f;
+                if (keyboard.wKey.isPressed) y += 1f;
+
+                _input.move = new Vector2(x, y);
+
+                // P1: Pulo com Space
+                if (keyboard.spaceKey.wasPressedThisFrame)
+                {
+                    _input.jump = true;
+                }
+
+                // P1: Correr com Left Shift
+                _input.sprint = keyboard.leftShiftKey.isPressed;
+            }
+            else if (PlayerID == 2)
+            {
+                // P2: Movimento pelas Setas
+                float x = 0f;
+                float y = 0f;
+                if (keyboard.leftArrowKey.isPressed) x -= 1f;
+                if (keyboard.rightArrowKey.isPressed) x += 1f;
+                if (keyboard.downArrowKey.isPressed) y -= 1f;
+                if (keyboard.upArrowKey.isPressed) y += 1f;
+
+                _input.move = new Vector2(x, y);
+
+                // P2: Pulo com Numpad 0
+                if (keyboard.numpad0Key.wasPressedThisFrame)
+                {
+                    _input.jump = true;
+                }
+
+                // P2: Correr com Right Shift ou Numpad Enter
+                _input.sprint = keyboard.rightShiftKey.isPressed || keyboard.numpadEnterKey.isPressed;
+            }
+#endif
         }
 
         private void AssignAnimationIDs()
@@ -191,42 +258,35 @@ public bool IsRespawning { get; set; } = false;
 
         private void GroundedCheck()
         {
-            // set sphere position, with offset
             Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - GroundedOffset,
                 transform.position.z);
             Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers,
                 QueryTriggerInteraction.Ignore);
 
-            // update animator if using character
             if (_hasAnimator)
             {
                 _animator.SetBool(_animIDGrounded, Grounded);
             }
         }
 
-        private void CameraRotation()
+      private void CameraRotation()
 {
-    // if respawning, reset to starting position and rotation
+    if (CinemachineCameraTarget == null) return;
+
     if (IsRespawning)
     {
-        _cinemachineTargetYaw = 0f; // Reset yaw to zero (or configure as needed)
+        _cinemachineTargetYaw = 0f;
         _cinemachineTargetPitch = 0f;
-
-        // Reset Cinemachine Camera Target to its starting state
         CinemachineCameraTarget.transform.position = _cameraStartingPosition;
         CinemachineCameraTarget.transform.rotation = _cameraStartingRotation;
-
-        IsRespawning = false; // Reset the respawning flag
+        IsRespawning = false;
         return;
     }
 
-    // if there is an input and camera position is not fixed
-    if (_input.look.sqrMagnitude >= _threshold && !LockCameraPosition)
+    // Se o jogador estiver se movendo, a câmera alinha automaticamente atrás dele
+    if (_input != null && _input.move != Vector2.zero)
     {
-        float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
-
-        _cinemachineTargetYaw += _input.look.x * deltaTimeMultiplier * LookSensitivity.x;
-        _cinemachineTargetPitch += _input.look.y * deltaTimeMultiplier * LookSensitivity.y;
+        _cinemachineTargetYaw = Mathf.LerpAngle(_cinemachineTargetYaw, transform.eulerAngles.y, Time.deltaTime * 5f);
     }
 
     _cinemachineTargetYaw = ClampAngle(_cinemachineTargetYaw, float.MinValue, float.MaxValue);
@@ -238,34 +298,25 @@ public bool IsRespawning { get; set; } = false;
         0.0f
     );
 }
-
         private void Move()
         {
-            // set target speed based on move speed, sprint speed and if sprint is pressed
+            if (_input == null) return;
+
             float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
 
-            // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
-
-            // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
-            // if there is no input, set the target speed to 0
             if (_input.move == Vector2.zero) targetSpeed = 0.0f;
 
-            // a reference to the players current horizontal velocity
             float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
 
             float speedOffset = 0.1f;
             float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
 
-            // accelerate or decelerate to target speed
             if (currentHorizontalSpeed < targetSpeed - speedOffset ||
                 currentHorizontalSpeed > targetSpeed + speedOffset)
             {
-                // creates curved result rather than a linear one giving a more organic speed change
-                // note T in Lerp is clamped, so we don't need to clamp our speed
                 _speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude,
                     Time.deltaTime * SpeedChangeRate);
 
-                // round speed to 3 decimal places
                 _speed = Mathf.Round(_speed * 1000f) / 1000f;
             }
             else
@@ -276,30 +327,24 @@ public bool IsRespawning { get; set; } = false;
             _animationBlend = Mathf.Lerp(_animationBlend, targetSpeed, Time.deltaTime * SpeedChangeRate);
             if (_animationBlend < 0.01f) _animationBlend = 0f;
 
-            // normalise input direction
             Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
 
-            // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
-            // if there is a move input rotate player when the player is moving
             if (_input.move != Vector2.zero)
             {
-                _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
-                                  _mainCamera.transform.eulerAngles.y;
+                float cameraYaw = _mainCamera != null ? _mainCamera.transform.eulerAngles.y : 0f;
+                _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg + cameraYaw;
+                
                 float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _targetRotation, ref _rotationVelocity,
                     RotationSmoothTime);
 
-                // rotate to face input direction relative to camera position
                 transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
             }
 
-
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
-            // move the player
             _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
                              new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
 
-            // update animator if using character
             if (_hasAnimator)
             {
                 _animator.SetFloat(_animIDSpeed, _animationBlend);
@@ -309,38 +354,33 @@ public bool IsRespawning { get; set; } = false;
 
         private void JumpAndGravity()
         {
+            if (_input == null) return;
+
             if (Grounded)
             {
-                // reset the fall timeout timer
                 _fallTimeoutDelta = FallTimeout;
 
-                // update animator if using character
                 if (_hasAnimator)
                 {
                     _animator.SetBool(_animIDJump, false);
                     _animator.SetBool(_animIDFreeFall, false);
                 }
 
-                // stop our velocity dropping infinitely when grounded
                 if (_verticalVelocity < 0.0f)
                 {
                     _verticalVelocity = -2f;
                 }
 
-                // Jump
                 if (_input.jump && _jumpTimeoutDelta <= 0.0f)
                 {
-                    // the square root of H * -2 * G = how much velocity needed to reach desired height
                     _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
 
-                    // update animator if using character
                     if (_hasAnimator)
                     {
                         _animator.SetBool(_animIDJump, true);
                     }
                 }
 
-                // jump timeout
                 if (_jumpTimeoutDelta >= 0.0f)
                 {
                     _jumpTimeoutDelta -= Time.deltaTime;
@@ -348,28 +388,23 @@ public bool IsRespawning { get; set; } = false;
             }
             else
             {
-                // reset the jump timeout timer
                 _jumpTimeoutDelta = JumpTimeout;
 
-                // fall timeout
                 if (_fallTimeoutDelta >= 0.0f)
                 {
                     _fallTimeoutDelta -= Time.deltaTime;
                 }
                 else
                 {
-                    // update animator if using character
                     if (_hasAnimator)
                     {
                         _animator.SetBool(_animIDFreeFall, true);
                     }
                 }
 
-                // if we are not grounded, do not jump
                 _input.jump = false;
             }
 
-            // apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
             if (_verticalVelocity < _terminalVelocity)
             {
                 _verticalVelocity += Gravity * Time.deltaTime;
@@ -391,7 +426,6 @@ public bool IsRespawning { get; set; } = false;
             if (Grounded) Gizmos.color = transparentGreen;
             else Gizmos.color = transparentRed;
 
-            // when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
             Gizmos.DrawSphere(
                 new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z),
                 GroundedRadius);
@@ -416,18 +450,18 @@ public bool IsRespawning { get; set; } = false;
                 AudioSource.PlayClipAtPoint(LandingAudioClip, transform.TransformPoint(_controller.center), FootstepAudioVolume);
             }
         }
+
         public void ResetCameraRotation(float targetYaw)
-{
-    // Reset the yaw and pitch to default values (targetYaw for Y rotation, and 0 for pitch)
-    _cinemachineTargetYaw = targetYaw;
-    _cinemachineTargetPitch = 0f;
+        {
+            _cinemachineTargetYaw = targetYaw;
+            _cinemachineTargetPitch = 0f;
 
-    // Reset the camera target's rotation explicitly
-    CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch, _cinemachineTargetYaw, 0f);
+            if (CinemachineCameraTarget != null)
+            {
+                CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch, _cinemachineTargetYaw, 0f);
+            }
 
-    Debug.Log($"Camera Yaw reset to {targetYaw} degrees.");
-}
+            Debug.Log($"Camera Yaw reset to {targetYaw} degrees.");
+        }
     }
-
-    
 }

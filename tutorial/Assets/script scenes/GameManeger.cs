@@ -1,14 +1,25 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
+
+public enum GameState
+{
+    Iniciando,
+    Gameplay,
+    GameOver
+}
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
     public GameState currentState;
-
     public PlayerInput playerInput;
+
+    [Header("Configuração de Cenas")]
+    public string gameplaySceneName = "GetStarted_Scene";
+    public string uiSceneName = "GUI"; 
 
     private void Awake()
     {
@@ -26,8 +37,8 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        SetState(GameState.Iniciando);
-        LoadScene("Splash");
+        // Inicia o processo de carregamento do Gameplay com a UI
+        LoadGameplayWithUI();
     }
 
     public void SetState(GameState newState)
@@ -36,23 +47,41 @@ public class GameManager : MonoBehaviour
         Debug.Log("Estado atual: " + currentState);
     }
 
-    public void LoadScene(string sceneName)
+    /// <summary>
+    /// Carrega a cena de jogo principal e adiciona a UI por cima.
+    /// </summary>
+    public void LoadGameplayWithUI()
     {
-        SceneManager.LoadScene(sceneName);
+        StartCoroutine(LoadGameplayWithUIRoutine());
+    }
 
-        switch (sceneName)
+    private IEnumerator LoadGameplayWithUIRoutine()
+    {
+        SetState(GameState.Gameplay);
+
+        // Se a cena de Gameplay já estiver aberta (por exemplo, ao testar direto pelo Editor), pula o carregamento Single
+        if (SceneManager.GetActiveScene().name != gameplaySceneName)
         {
-            case "Splash":
-                SetState(GameState.Iniciando);
-                break;
+            AsyncOperation asyncGameplay = SceneManager.LoadSceneAsync(gameplaySceneName, LoadSceneMode.Single);
+            while (!asyncGameplay.isDone)
+            {
+                yield return null;
+            }
+        }
 
-            case "MenuPrincipal":
-                SetState(GameState.MenuPrincipal);
-                break;
+        // Carrega a cena de UI por cima (Additive) se ainda não estiver aberta
+        yield return StartCoroutine(LoadUISceneAdditiveRoutine());
+    }
 
-            case "GetStarted_Scene":
-                SetState(GameState.Gameplay);
-                break;
+    private IEnumerator LoadUISceneAdditiveRoutine()
+    {
+        if (!SceneManager.GetSceneByName(uiSceneName).isLoaded)
+        {
+            AsyncOperation asyncUI = SceneManager.LoadSceneAsync(uiSceneName, LoadSceneMode.Additive);
+            while (!asyncUI.isDone)
+            {
+                yield return null;
+            }
         }
     }
 

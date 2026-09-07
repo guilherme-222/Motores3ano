@@ -150,6 +150,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentState: 0
   playerInput: {fileID: 0}
+  gameplaySceneName: GetStarted_Scene
+  uiSceneName: GUI
 --- !u!4 &415528442
 Transform:
   m_ObjectHideFlags: 0

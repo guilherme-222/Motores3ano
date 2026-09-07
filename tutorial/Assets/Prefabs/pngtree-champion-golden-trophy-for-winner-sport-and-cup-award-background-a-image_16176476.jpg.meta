@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 936edc3cb64b6467b8f80ba720661c69
+guid: 3cde41bd26acafa48b8a2685df6c6563
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8526856291570783591
-    second: 3.4 Lighting_0
+      213: -9204231268730219150
+    second: pngtree-champion-golden-trophy-for-winner-sport-and-cup-award-background-a-image_16176476_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,23 +128,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 3.4 Lighting_0
+      name: pngtree-champion-golden-trophy-for-winner-sport-and-cup-award-background-a-image_16176476_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 2232
-        height: 1244
+        width: 517
+        height: 255
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 99a6e1a41658aa980800000000000000
-      internalID: -8526856291570783591
+      spriteID: 275dacc5d60044080800000000000000
+      internalID: -9204231268730219150
       vertices: []
       indices: 
       edges: []
@@ -153,7 +153,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: ef4f954f6e5be4340982622e98b7faeb
     internalID: 0
     vertices: []
     indices: 
@@ -163,7 +163,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      3.4 Lighting_0: -8526856291570783591
+      pngtree-champion-golden-trophy-for-winner-sport-and-cup-award-background-a-image_16176476_0: -9204231268730219150
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
